@@ -1,0 +1,92 @@
+# Build directories
+build/
+build-*/
+cmake-build-*/
+out/
+dist/
+
+# Compiled binaries and objects
+*.exe
+*.out
+*.app
+*.o
+*.obj
+*.so
+*.a
+*.lib
+*.dll
+*.dylib
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+install_manifest.txt
+Testing/
+*.cmake.in
+
+# IDE and editor files
+.vscode/
+.vs/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Environment and configuration files
+.env
+.env.local
+*.local
+
+# Python cache (if any Python tools are used)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Documentation build
+docs/html/
+docs/latex/
+docs/xml/
+*.log
+
+# Test output and coverage
+*.gcno
+*.gcda
+*.gcov
+coverage/
+*.coverage
+htmlcov/
+
+# Clang tools
+.clang-format.bak
+.clang-tidy.bak
+compile_commands.json
+
+# Core dumps and crash reports
+core
+core.*
+*.dmp
+
+# Package managers
+node_modules/
+package-lock.json
+yarn.lock
+
+# Temporary and backup files
+*.tmp
+*.bak
+*.backup
+*~.nib
+
+# OS-specific
+Thumbs.db
+Desktop.ini

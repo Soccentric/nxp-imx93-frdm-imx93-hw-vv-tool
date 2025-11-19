@@ -1,0 +1,9 @@
+add_executable(imx93_peripheral_test_app main.cpp)
+target_link_libraries(imx93_peripheral_test_app PRIVATE gpio_tester cpu_tester camera_tester gpu_tester memory_tester storage_tester display_tester usb_tester networking_tester power_tester form_factor_tester)
+target_include_directories(imx93_peripheral_test_app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../include)
+target_compile_features(imx93_peripheral_test_app PRIVATE cxx_std_17)
+
+# Install
+install(TARGETS imx93_peripheral_test_app
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
