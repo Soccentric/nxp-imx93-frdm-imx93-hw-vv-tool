@@ -12,10 +12,11 @@
 #ifndef FORM_FACTOR_TESTER_H
 #define FORM_FACTOR_TESTER_H
 
-#include "peripheral_tester.h"
-#include <vector>
-#include <string>
 #include <cstdint>
+#include <string>
+#include <vector>
+
+#include "peripheral_tester.h"
 
 namespace imx93_peripheral_test {
 
@@ -24,50 +25,40 @@ namespace imx93_peripheral_test {
  * @brief Types of physical interfaces.
  */
 enum class InterfaceType {
-    GPIO,
-    I2C,
-    SPI,
-    UART,
-    PWM,
-    I2S,
-    PCM,
-    HDMI,
-    MIPI_DSI,
-    MIPI_CSI,
-    USB,
-    ETHERNET,
-    PCIe,
-    SDIO,
-    UNKNOWN
+  GPIO,
+  I2C,
+  SPI,
+  UART,
+  PWM,
+  I2S,
+  PCM,
+  HDMI,
+  MIPI_DSI,
+  MIPI_CSI,
+  USB,
+  ETHERNET,
+  PCIe,
+  SDIO,
+  UNKNOWN
 };
 
 /**
  * @enum PinFunction
  * @brief GPIO pin functions.
  */
-enum class PinFunction {
-    INPUT,
-    OUTPUT,
-    ALT0,
-    ALT1,
-    ALT2,
-    ALT3,
-    ALT4,
-    ALT5,
-    UNKNOWN
-};
+enum class PinFunction { INPUT, OUTPUT, ALT0, ALT1, ALT2, ALT3, ALT4, ALT5, UNKNOWN };
 
 /**
  * @struct PinInfo
  * @brief Structure containing GPIO pin information.
  */
 struct PinInfo {
-    int pin_number;
-    PinFunction function;
-    bool pull_up;
-    bool pull_down;
-    double voltage_v;
-    std::string description;
+  int         pin_number;
+  PinFunction function;
+  bool        pull_up;
+  bool        pull_down;
+  double      voltage_v;
+  std::string description;
 };
 
 /**
@@ -75,11 +66,11 @@ struct PinInfo {
  * @brief Structure containing interface information.
  */
 struct InterfaceInfo {
-    InterfaceType type;
-    std::string name;
-    bool available;
-    std::string status;
-    std::vector<PinInfo> pins;
+  InterfaceType        type;
+  std::string          name;
+  bool                 available;
+  std::string          status;
+  std::vector<PinInfo> pins;
 };
 
 /**
@@ -87,11 +78,11 @@ struct InterfaceInfo {
  * @brief Structure containing form factor information.
  */
 struct FormFactorInfo {
-    std::string module_type;
-    std::string revision;
-    std::string serial_number;
-    double board_temperature_c;
-    std::vector<InterfaceInfo> interfaces;
+  std::string                module_type;
+  std::string                revision;
+  std::string                serial_number;
+  double                     board_temperature_c;
+  std::vector<InterfaceInfo> interfaces;
 };
 
 /**
@@ -104,109 +95,111 @@ struct FormFactorInfo {
  */
 class FormFactorTester : public PeripheralTester {
 public:
-    /**
-     * @brief Constructs a Form Factor tester instance.
-     */
-    FormFactorTester();
+  /**
+   * @brief Constructs a Form Factor tester instance.
+   */
+  FormFactorTester();
 
-    /**
-     * @brief Performs short verification test of physical interfaces.
-     *
-     * Tests basic interface operations including:
-     * - GPIO pin functionality
-     * - Interface enumeration
-     * - Basic connectivity tests
-     *
-     * @return TestReport with detailed results.
-     */
-    TestReport short_test() override;
+  /**
+   * @brief Performs short verification test of physical interfaces.
+   *
+   * Tests basic interface operations including:
+   * - GPIO pin functionality
+   * - Interface enumeration
+   * - Basic connectivity tests
+   *
+   * @return TestReport with detailed results.
+   */
+  TestReport short_test() override;
 
-    /**
-     * @brief Performs extended monitoring of physical interfaces.
-     *
-     * Monitors interfaces over time for:
-     * - Signal integrity
-     * - Temperature stability
-     * - Interface reliability
-     *
-     * @param duration Monitoring duration in seconds.
-     * @return TestReport with monitoring results.
-     */
-    TestReport monitor_test(std::chrono::seconds duration) override;
+  /**
+   * @brief Performs extended monitoring of physical interfaces.
+   *
+   * Monitors interfaces over time for:
+   * - Signal integrity
+   * - Temperature stability
+   * - Interface reliability
+   *
+   * @param duration Monitoring duration in seconds.
+   * @return TestReport with monitoring results.
+   */
+  TestReport monitor_test(std::chrono::seconds duration) override;
 
-    /**
-     * @brief Returns the peripheral name.
-     * @return "Form Factor" as the peripheral identifier.
-     */
-    std::string get_peripheral_name() const override { return "Form Factor"; }
+  /**
+   * @brief Returns the peripheral name.
+   * @return "Form Factor" as the peripheral identifier.
+   */
+  std::string get_peripheral_name() const override {
+    return "Form Factor";
+  }
 
-    /**
-     * @brief Checks if form factor testing is available on the system.
-     * @return true if physical interfaces can be tested.
-     */
-    bool is_available() const override;
+  /**
+   * @brief Checks if form factor testing is available on the system.
+   * @return true if physical interfaces can be tested.
+   */
+  bool is_available() const override;
 
 private:
-    /**
-     * @brief Retrieves form factor information from system.
-     * @return FormFactorInfo structure with hardware details.
-     */
-    FormFactorInfo get_form_factor_info();
+  /**
+   * @brief Retrieves form factor information from system.
+   * @return FormFactorInfo structure with hardware details.
+   */
+  FormFactorInfo get_form_factor_info();
 
-    /**
-     * @brief Tests GPIO pin functionality.
-     * @return TestResult indicating success or failure.
-     */
-    TestResult test_gpio_pins();
+  /**
+   * @brief Tests GPIO pin functionality.
+   * @return TestResult indicating success or failure.
+   */
+  TestResult test_gpio_pins();
 
-    /**
-     * @brief Tests interface availability and basic functionality.
-     * @return TestResult indicating success or failure.
-     */
-    TestResult test_interfaces();
+  /**
+   * @brief Tests interface availability and basic functionality.
+   * @return TestResult indicating success or failure.
+   */
+  TestResult test_interfaces();
 
-    /**
-     * @brief Tests board identification and revision.
-     * @return TestResult indicating success or failure.
-     */
-    TestResult test_board_info();
+  /**
+   * @brief Tests board identification and revision.
+   * @return TestResult indicating success or failure.
+   */
+  TestResult test_board_info();
 
-    /**
-     * @brief Tests temperature monitoring.
-     * @return TestResult indicating success or failure.
-     */
-    TestResult test_temperature();
+  /**
+   * @brief Tests temperature monitoring.
+   * @return TestResult indicating success or failure.
+   */
+  TestResult test_temperature();
 
-    /**
-     * @brief Monitors interface stability over time.
-     * @param duration Monitoring duration.
-     * @return TestResult indicating success or failure.
-     */
-    TestResult monitor_interfaces(std::chrono::seconds duration);
+  /**
+   * @brief Monitors interface stability over time.
+   * @param duration Monitoring duration.
+   * @return TestResult indicating success or failure.
+   */
+  TestResult monitor_interfaces(std::chrono::seconds duration);
 
-    /**
-     * @brief Enumerates available interfaces.
-     * @return Vector of InterfaceInfo structures.
-     */
-    std::vector<InterfaceInfo> enumerate_interfaces();
+  /**
+   * @brief Enumerates available interfaces.
+   * @return Vector of InterfaceInfo structures.
+   */
+  std::vector<InterfaceInfo> enumerate_interfaces();
 
-    /**
-     * @brief Tests specific GPIO pin.
-     * @param pin_number GPIO pin number to test.
-     * @return TestResult indicating success or failure.
-     */
-    TestResult test_gpio_pin(int pin_number);
+  /**
+   * @brief Tests specific GPIO pin.
+   * @param pin_number GPIO pin number to test.
+   * @return TestResult indicating success or failure.
+   */
+  TestResult test_gpio_pin(int pin_number);
 
-    /**
-     * @brief Gets board temperature.
-     * @return Temperature in Celsius.
-     */
-    double get_board_temperature();
+  /**
+   * @brief Gets board temperature.
+   * @return Temperature in Celsius.
+   */
+  double get_board_temperature();
 
-    FormFactorInfo form_factor_info_;
-    bool form_factor_available_;
+  FormFactorInfo form_factor_info_;
+  bool           form_factor_available_;
 };
 
-} // namespace imx93_peripheral_test
+}  // namespace imx93_peripheral_test
 
-#endif // FORM_FACTOR_TESTER_H
+#endif  // FORM_FACTOR_TESTER_H

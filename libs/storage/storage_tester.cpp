@@ -13,16 +13,18 @@
  */
 
 #include "storage_tester.h"
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <thread>
-#include <chrono>
-#include <filesystem>
-#include <cstring>
-#include <cstdlib>
+
 #include <sys/statvfs.h>
 #include <unistd.h>
+
+#include <chrono>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <thread>
 
 namespace fs = std::filesystem;
 
@@ -36,11 +38,12 @@ namespace imx93_peripheral_test {
  * For i.MX93, looks for eMMC, SD/MMC (uSDHC controllers), and optional PCIe storage.
  */
 StorageTester::StorageTester() : storage_available_(false) {
-    // Check if storage devices are available
-    storage_available_ = fs::exists("/dev") && (fs::exists("/sys/block") || fs::exists("/proc/diskstats"));
-    if (storage_available_) {
-        storage_devices_ = enumerate_storage_devices();
-    }
+  // Check if storage devices are available
+  storage_available_ =
+      fs::exists("/dev") && (fs::exists("/sys/block") || fs::exists("/proc/diskstats"));
+  if (storage_available_) {
+    storage_devices_ = enumerate_storage_devices();
+  }
 }
 
 /**
@@ -59,51 +62,77 @@ StorageTester::StorageTester() : storage_available_(false) {
  * @note This test provides a quick assessment of storage subsystem functionality.
  */
 TestReport StorageTester::short_test() {
-    auto start_time = std::chrono::steady_clock::now();
+  auto start_time = std::chrono::steady_clock::now();
 
-    if (!storage_available_) {
-        return create_report(TestResult::NOT_SUPPORTED, "Storage devices not available", std::chrono::milliseconds(0));
+  if (!storage_available_) {
+    return create_report(TestResult::NOT_SUPPORTED, "Storage devices not available",
+                         std::chrono::milliseconds(0));
+  }
+
+  std::stringstream details;
+  bool              all_passed = true;
+
+  details << "Found " << storage_devices_.size() << " storage device(s)\n";
+
+  for (const auto& device : storage_devices_) {
+    details << "- " << device.device_path << " (" << device.size_gb << "GB";
+    if (!device.model.empty()) {
+      details << ", " << device.model;
     }
+    details << ")\n";
+  }
 
-    std::stringstream details;
-    bool all_passed = true;
+  // Test different storage types
+  TestResult emmc_result = test_emmc();
+  details << "eMMC: "
+          << (emmc_result == TestResult::SUCCESS
+                  ? "PASS"
+                  : (emmc_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL"))
+          << "\n";
+  if (emmc_result != TestResult::SUCCESS && emmc_result != TestResult::NOT_SUPPORTED)
+    all_passed = false;
 
-    details << "Found " << storage_devices_.size() << " storage device(s)\n";
+  TestResult sdcard_result = test_sdcard();
+  details << "SD Card: "
+          << (sdcard_result == TestResult::SUCCESS
+                  ? "PASS"
+                  : (sdcard_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL"))
+          << "\n";
+  if (sdcard_result != TestResult::SUCCESS && sdcard_result != TestResult::NOT_SUPPORTED)
+    all_passed = false;
 
-    for (const auto& device : storage_devices_) {
-        details << "- " << device.device_path << " (" << device.size_gb << "GB";
-        if (!device.model.empty()) {
-            details << ", " << device.model;
-        }
-        details << ")\n";
-    }
+  TestResult nvme_result = test_nvme();
+  details << "NVMe: "
+          << (nvme_result == TestResult::SUCCESS
+                  ? "PASS"
+                  : (nvme_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL"))
+          << "\n";
+  if (nvme_result != TestResult::SUCCESS && nvme_result != TestResult::NOT_SUPPORTED)
+    all_passed = false;
 
-    // Test different storage types
-    TestResult emmc_result = test_emmc();
-    details << "eMMC: " << (emmc_result == TestResult::SUCCESS ? "PASS" : (emmc_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL")) << "\n";
-    if (emmc_result != TestResult::SUCCESS && emmc_result != TestResult::NOT_SUPPORTED) all_passed = false;
+  TestResult pcie_result = test_pcie();
+  details << "PCIe: "
+          << (pcie_result == TestResult::SUCCESS
+                  ? "PASS"
+                  : (pcie_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL"))
+          << "\n";
+  if (pcie_result != TestResult::SUCCESS && pcie_result != TestResult::NOT_SUPPORTED)
+    all_passed = false;
 
-    TestResult sdcard_result = test_sdcard();
-    details << "SD Card: " << (sdcard_result == TestResult::SUCCESS ? "PASS" : (sdcard_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL")) << "\n";
-    if (sdcard_result != TestResult::SUCCESS && sdcard_result != TestResult::NOT_SUPPORTED) all_passed = false;
+  TestResult m2_result = test_m2();
+  details << "M.2: "
+          << (m2_result == TestResult::SUCCESS
+                  ? "PASS"
+                  : (m2_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL"))
+          << "\n";
+  if (m2_result != TestResult::SUCCESS && m2_result != TestResult::NOT_SUPPORTED)
+    all_passed = false;
 
-    TestResult nvme_result = test_nvme();
-    details << "NVMe: " << (nvme_result == TestResult::SUCCESS ? "PASS" : (nvme_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL")) << "\n";
-    if (nvme_result != TestResult::SUCCESS && nvme_result != TestResult::NOT_SUPPORTED) all_passed = false;
+  auto end_time = std::chrono::steady_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
-    TestResult pcie_result = test_pcie();
-    details << "PCIe: " << (pcie_result == TestResult::SUCCESS ? "PASS" : (pcie_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL")) << "\n";
-    if (pcie_result != TestResult::SUCCESS && pcie_result != TestResult::NOT_SUPPORTED) all_passed = false;
-
-    TestResult m2_result = test_m2();
-    details << "M.2: " << (m2_result == TestResult::SUCCESS ? "PASS" : (m2_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL")) << "\n";
-    if (m2_result != TestResult::SUCCESS && m2_result != TestResult::NOT_SUPPORTED) all_passed = false;
-
-    auto end_time = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-
-    TestResult overall_result = all_passed ? TestResult::SUCCESS : TestResult::FAILURE;
-    return create_report(overall_result, details.str(), duration);
+  TestResult overall_result = all_passed ? TestResult::SUCCESS : TestResult::FAILURE;
+  return create_report(overall_result, details.str(), duration);
 }
 
 /**
@@ -120,19 +149,21 @@ TestReport StorageTester::short_test() {
  * @note This is a long-running test that monitors storage activity over time.
  */
 TestReport StorageTester::monitor_test(std::chrono::seconds duration) {
-    auto start_time = std::chrono::steady_clock::now();
+  auto start_time = std::chrono::steady_clock::now();
 
-    if (!storage_available_) {
-        return create_report(TestResult::NOT_SUPPORTED, "Storage devices not available", std::chrono::milliseconds(0));
-    }
+  if (!storage_available_) {
+    return create_report(TestResult::NOT_SUPPORTED, "Storage devices not available",
+                         std::chrono::milliseconds(0));
+  }
 
-    TestResult result = monitor_storage_io(duration);
+  TestResult result = monitor_storage_io(duration);
 
-    auto end_time = std::chrono::steady_clock::now();
-    auto test_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+  auto end_time      = std::chrono::steady_clock::now();
+  auto test_duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 
-    std::string details = "Storage monitoring completed for " + std::to_string(duration.count()) + " seconds";
-    return create_report(result, details, test_duration);
+  std::string details =
+      "Storage monitoring completed for " + std::to_string(duration.count()) + " seconds";
+  return create_report(result, details, test_duration);
 }
 
 /**
@@ -144,7 +175,7 @@ TestReport StorageTester::monitor_test(std::chrono::seconds duration) {
  * @return true if storage devices are accessible, false otherwise.
  */
 bool StorageTester::is_available() const {
-    return storage_available_;
+  return storage_available_;
 }
 
 /**
@@ -158,55 +189,55 @@ bool StorageTester::is_available() const {
  * @note Only includes relevant storage device types for FRDM-IMX93 testing.
  */
 std::vector<StorageDevice> StorageTester::enumerate_storage_devices() {
-    std::vector<StorageDevice> devices;
+  std::vector<StorageDevice> devices;
 
-    // Check /sys/block for block devices
-    if (fs::exists("/sys/block")) {
-        for (const auto& entry : fs::directory_iterator("/sys/block")) {
-            std::string device_name = entry.path().filename().string();
-            std::string device_path = "/dev/" + device_name;
+  // Check /sys/block for block devices
+  if (fs::exists("/sys/block")) {
+    for (const auto& entry : fs::directory_iterator("/sys/block")) {
+      std::string device_name = entry.path().filename().string();
+      std::string device_path = "/dev/" + device_name;
 
-            if (fs::exists(device_path)) {
-                StorageDevice device;
-                device.device_path = device_path;
+      if (fs::exists(device_path)) {
+        StorageDevice device;
+        device.device_path = device_path;
 
-                // Determine device type
-                if (device_name.find("mmcblk") == 0) {
-                    device.type = StorageType::EMMC;
-                } else if (device_name.find("nvme") == 0) {
-                    device.type = StorageType::NVME;
-                } else if (device_name.find("sd") == 0) {
-                    device.type = StorageType::SDCARD;
-                } else {
-                    continue; // Skip other devices
-                }
-
-                // Get device size
-                std::ifstream size_file("/sys/block/" + device_name + "/size");
-                if (size_file.is_open()) {
-                    std::string size_str;
-                    std::getline(size_file, size_str);
-                    try {
-                        uint64_t sectors = std::stoull(size_str);
-                        device.size_gb = sectors * 512 / (1024 * 1024 * 1024); // Convert to GB
-                    } catch (...) {
-                        device.size_gb = 0;
-                    }
-                }
-
-                // Get model information
-                std::ifstream model_file("/sys/block/" + device_name + "/device/model");
-                if (model_file.is_open()) {
-                    std::getline(model_file, device.model);
-                    device.model.erase(device.model.find_last_not_of("\n\r\t") + 1);
-                }
-
-                devices.push_back(device);
-            }
+        // Determine device type
+        if (device_name.find("mmcblk") == 0) {
+          device.type = StorageType::EMMC;
+        } else if (device_name.find("nvme") == 0) {
+          device.type = StorageType::NVME;
+        } else if (device_name.find("sd") == 0) {
+          device.type = StorageType::SDCARD;
+        } else {
+          continue;  // Skip other devices
         }
-    }
 
-    return devices;
+        // Get device size
+        std::ifstream size_file("/sys/block/" + device_name + "/size");
+        if (size_file.is_open()) {
+          std::string size_str;
+          std::getline(size_file, size_str);
+          try {
+            uint64_t sectors = std::stoull(size_str);
+            device.size_gb   = sectors * 512 / (1024 * 1024 * 1024);  // Convert to GB
+          } catch (...) {
+            device.size_gb = 0;
+          }
+        }
+
+        // Get model information
+        std::ifstream model_file("/sys/block/" + device_name + "/device/model");
+        if (model_file.is_open()) {
+          std::getline(model_file, device.model);
+          device.model.erase(device.model.find_last_not_of("\n\r\t") + 1);
+        }
+
+        devices.push_back(device);
+      }
+    }
+  }
+
+  return devices;
 }
 
 /**
@@ -222,20 +253,20 @@ std::vector<StorageDevice> StorageTester::enumerate_storage_devices() {
  * @note eMMC is commonly used as primary storage on FRDM-IMX93.
  */
 TestResult StorageTester::test_emmc() {
-    // Look for eMMC devices
-    bool emmc_found = false;
-    for (const auto& device : storage_devices_) {
-        if (device.type == StorageType::EMMC) {
-            emmc_found = true;
-            // Test basic I/O on eMMC
-            TestResult perf_result = test_storage_performance(device.device_path);
-            if (perf_result != TestResult::SUCCESS) {
-                return TestResult::FAILURE;
-            }
-        }
+  // Look for eMMC devices
+  bool emmc_found = false;
+  for (const auto& device : storage_devices_) {
+    if (device.type == StorageType::EMMC) {
+      emmc_found = true;
+      // Test basic I/O on eMMC
+      TestResult perf_result = test_storage_performance(device.device_path);
+      if (perf_result != TestResult::SUCCESS) {
+        return TestResult::FAILURE;
+      }
     }
+  }
 
-    return emmc_found ? TestResult::SUCCESS : TestResult::NOT_SUPPORTED;
+  return emmc_found ? TestResult::SUCCESS : TestResult::NOT_SUPPORTED;
 }
 
 /**
@@ -251,20 +282,20 @@ TestResult StorageTester::test_emmc() {
  * @note SD cards are optional peripherals on FRDM-IMX93.
  */
 TestResult StorageTester::test_sdcard() {
-    // Look for SD card devices
-    bool sd_found = false;
-    for (const auto& device : storage_devices_) {
-        if (device.type == StorageType::SDCARD) {
-            sd_found = true;
-            // Test basic I/O on SD card
-            TestResult perf_result = test_storage_performance(device.device_path);
-            if (perf_result != TestResult::SUCCESS) {
-                return TestResult::FAILURE;
-            }
-        }
+  // Look for SD card devices
+  bool sd_found = false;
+  for (const auto& device : storage_devices_) {
+    if (device.type == StorageType::SDCARD) {
+      sd_found = true;
+      // Test basic I/O on SD card
+      TestResult perf_result = test_storage_performance(device.device_path);
+      if (perf_result != TestResult::SUCCESS) {
+        return TestResult::FAILURE;
+      }
     }
+  }
 
-    return sd_found ? TestResult::SUCCESS : TestResult::NOT_SUPPORTED;
+  return sd_found ? TestResult::SUCCESS : TestResult::NOT_SUPPORTED;
 }
 
 /**
@@ -280,20 +311,20 @@ TestResult StorageTester::test_sdcard() {
  * @note NVMe provides high-performance storage on FRDM-IMX93 via PCIe.
  */
 TestResult StorageTester::test_nvme() {
-    // Look for NVMe devices
-    bool nvme_found = false;
-    for (const auto& device : storage_devices_) {
-        if (device.type == StorageType::NVME) {
-            nvme_found = true;
-            // Test NVMe performance
-            TestResult perf_result = test_storage_performance(device.device_path);
-            if (perf_result != TestResult::SUCCESS) {
-                return TestResult::FAILURE;
-            }
-        }
+  // Look for NVMe devices
+  bool nvme_found = false;
+  for (const auto& device : storage_devices_) {
+    if (device.type == StorageType::NVME) {
+      nvme_found = true;
+      // Test NVMe performance
+      TestResult perf_result = test_storage_performance(device.device_path);
+      if (perf_result != TestResult::SUCCESS) {
+        return TestResult::FAILURE;
+      }
     }
+  }
 
-    return nvme_found ? TestResult::SUCCESS : TestResult::NOT_SUPPORTED;
+  return nvme_found ? TestResult::SUCCESS : TestResult::NOT_SUPPORTED;
 }
 
 /**
@@ -308,30 +339,30 @@ TestResult StorageTester::test_nvme() {
  * @note Uses lspci to detect PCIe storage controllers.
  */
 TestResult StorageTester::test_pcie() {
-    // Check for PCIe storage devices
-    bool pcie_found = false;
+  // Check for PCIe storage devices
+  bool pcie_found = false;
 
-    // Look for NVMe over PCIe
-    for (const auto& device : storage_devices_) {
-        if (device.type == StorageType::NVME) {
-            pcie_found = true;
-            break;
-        }
+  // Look for NVMe over PCIe
+  for (const auto& device : storage_devices_) {
+    if (device.type == StorageType::NVME) {
+      pcie_found = true;
+      break;
     }
+  }
 
-    // Also check lspci for PCIe storage controllers
-    if (!pcie_found) {
-        FILE* lspci_pipe = popen("lspci | grep -i 'storage\\|nvme\\|ahci' 2>/dev/null", "r");
-        if (lspci_pipe) {
-            char buffer[256];
-            if (fgets(buffer, sizeof(buffer), lspci_pipe)) {
-                pcie_found = true;
-            }
-            pclose(lspci_pipe);
-        }
+  // Also check lspci for PCIe storage controllers
+  if (!pcie_found) {
+    FILE* lspci_pipe = popen("lspci | grep -i 'storage\\|nvme\\|ahci' 2>/dev/null", "r");
+    if (lspci_pipe) {
+      char buffer[256];
+      if (fgets(buffer, sizeof(buffer), lspci_pipe)) {
+        pcie_found = true;
+      }
+      pclose(lspci_pipe);
     }
+  }
 
-    return pcie_found ? TestResult::SUCCESS : TestResult::NOT_SUPPORTED;
+  return pcie_found ? TestResult::SUCCESS : TestResult::NOT_SUPPORTED;
 }
 
 /**
@@ -346,9 +377,9 @@ TestResult StorageTester::test_pcie() {
  * @note On FRDM-IMX93, M.2 storage uses PCIe interface.
  */
 TestResult StorageTester::test_m2() {
-    // M.2 devices are typically NVMe or SATA over PCIe
-    // For FRDM-IMX93, M.2 is PCIe-based
-    return test_pcie();
+  // M.2 devices are typically NVMe or SATA over PCIe
+  // For FRDM-IMX93, M.2 is PCIe-based
+  return test_pcie();
 }
 
 /**
@@ -364,26 +395,29 @@ TestResult StorageTester::test_m2() {
  * @note Uses temporary files in /tmp for testing to avoid damaging devices.
  */
 TestResult StorageTester::test_storage_performance(const std::string& device_path) {
-    (void)device_path; // Parameter not used in current implementation
-    // Simple storage performance test using dd
-    std::string test_file = "/tmp/storage_test_" + std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
+  (void)device_path;  // Parameter not used in current implementation
+  // Simple storage performance test using dd
+  std::string test_file =
+      "/tmp/storage_test_" +
+      std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
 
-    // Write test
-    std::string write_cmd = "timeout 10 dd if=/dev/zero of=" + test_file + " bs=1M count=10 2>/dev/null";
-    int write_result = system(write_cmd.c_str());
+  // Write test
+  std::string write_cmd =
+      "timeout 10 dd if=/dev/zero of=" + test_file + " bs=1M count=10 2>/dev/null";
+  int write_result = system(write_cmd.c_str());
 
-    if (write_result != 0) {
-        return TestResult::FAILURE;
-    }
+  if (write_result != 0) {
+    return TestResult::FAILURE;
+  }
 
-    // Read test
-    std::string read_cmd = "timeout 10 dd if=" + test_file + " of=/dev/null bs=1M 2>/dev/null";
-    int read_result = system(read_cmd.c_str());
+  // Read test
+  std::string read_cmd    = "timeout 10 dd if=" + test_file + " of=/dev/null bs=1M 2>/dev/null";
+  int         read_result = system(read_cmd.c_str());
 
-    // Cleanup
-    unlink(test_file.c_str());
+  // Cleanup
+  unlink(test_file.c_str());
 
-    return (read_result == 0) ? TestResult::SUCCESS : TestResult::FAILURE;
+  return (read_result == 0) ? TestResult::SUCCESS : TestResult::FAILURE;
 }
 
 /**
@@ -400,45 +434,46 @@ TestResult StorageTester::test_storage_performance(const std::string& device_pat
  * @note I/O activity readings are taken every second during monitoring.
  */
 TestResult StorageTester::monitor_storage_io(std::chrono::seconds duration) {
-    auto start_time = std::chrono::steady_clock::now();
-    auto end_time = start_time + duration;
+  auto start_time = std::chrono::steady_clock::now();
+  auto end_time   = start_time + duration;
 
-    std::vector<uint64_t> read_counts, write_counts;
+  std::vector<uint64_t> read_counts, write_counts;
 
-    while (std::chrono::steady_clock::now() < end_time) {
-        std::ifstream diskstats("/proc/diskstats");
-        if (diskstats.is_open()) {
-            std::string line;
-            uint64_t total_reads = 0, total_writes = 0;
+  while (std::chrono::steady_clock::now() < end_time) {
+    std::ifstream diskstats("/proc/diskstats");
+    if (diskstats.is_open()) {
+      std::string line;
+      uint64_t    total_reads = 0, total_writes = 0;
 
-            while (std::getline(diskstats, line)) {
-                std::stringstream ss(line);
-                std::string device;
-                uint64_t reads, writes;
+      while (std::getline(diskstats, line)) {
+        std::stringstream ss(line);
+        std::string       device;
+        uint64_t          reads, writes;
 
-                // Parse diskstats format: major minor name reads writes ...
-                ss >> device >> device >> device >> reads >> writes;
-                total_reads += reads;
-                total_writes += writes;
-            }
+        // Parse diskstats format: major minor name reads writes ...
+        ss >> device >> device >> device >> reads >> writes;
+        total_reads += reads;
+        total_writes += writes;
+      }
 
-            read_counts.push_back(total_reads);
-            write_counts.push_back(total_writes);
-        }
-
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+      read_counts.push_back(total_reads);
+      write_counts.push_back(total_writes);
     }
 
-    if (read_counts.size() < 2) {
-        return TestResult::FAILURE;
-    }
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
 
-    // Check for I/O activity (should be relatively stable)
-    uint64_t read_variation = read_counts.back() - read_counts.front();
-    uint64_t write_variation = write_counts.back() - write_counts.front();
+  if (read_counts.size() < 2) {
+    return TestResult::FAILURE;
+  }
 
-    // Allow some I/O variation but not excessive
-    return (read_variation < 10000 && write_variation < 10000) ? TestResult::SUCCESS : TestResult::FAILURE;
+  // Check for I/O activity (should be relatively stable)
+  uint64_t read_variation  = read_counts.back() - read_counts.front();
+  uint64_t write_variation = write_counts.back() - write_counts.front();
+
+  // Allow some I/O variation but not excessive
+  return (read_variation < 10000 && write_variation < 10000) ? TestResult::SUCCESS
+                                                             : TestResult::FAILURE;
 }
 
 /**
@@ -454,37 +489,37 @@ TestResult StorageTester::monitor_storage_io(std::chrono::seconds duration) {
  * @note Uses statvfs to check filesystem status and performs read/write test.
  */
 TestResult StorageTester::test_filesystem_integrity(const std::string& mount_point) {
-    // Test filesystem integrity using fsck-like operations
-    struct statvfs stat;
-    if (statvfs(mount_point.c_str(), &stat) != 0) {
-        return TestResult::FAILURE;
-    }
+  // Test filesystem integrity using fsck-like operations
+  struct statvfs stat;
+  if (statvfs(mount_point.c_str(), &stat) != 0) {
+    return TestResult::FAILURE;
+  }
 
-    // Check if filesystem is writable
-    std::string test_file = mount_point + "/.storage_test";
-    std::ofstream test_out(test_file);
-    if (!test_out.is_open()) {
-        return TestResult::FAILURE;
-    }
+  // Check if filesystem is writable
+  std::string   test_file = mount_point + "/.storage_test";
+  std::ofstream test_out(test_file);
+  if (!test_out.is_open()) {
+    return TestResult::FAILURE;
+  }
 
-    test_out << "test data";
-    test_out.close();
+  test_out << "test data";
+  test_out.close();
 
-    // Read back
-    std::ifstream test_in(test_file);
-    if (!test_in.is_open()) {
-        unlink(test_file.c_str());
-        return TestResult::FAILURE;
-    }
-
-    std::string content;
-    std::getline(test_in, content);
-    test_in.close();
-
-    // Cleanup
+  // Read back
+  std::ifstream test_in(test_file);
+  if (!test_in.is_open()) {
     unlink(test_file.c_str());
+    return TestResult::FAILURE;
+  }
 
-    return (content == "test data") ? TestResult::SUCCESS : TestResult::FAILURE;
+  std::string content;
+  std::getline(test_in, content);
+  test_in.close();
+
+  // Cleanup
+  unlink(test_file.c_str());
+
+  return (content == "test data") ? TestResult::SUCCESS : TestResult::FAILURE;
 }
 
-} // namespace imx93_peripheral_test
+}  // namespace imx93_peripheral_test
