@@ -3,6 +3,13 @@
  * @brief Main application entry point for FRDM-IMX93 peripheral verification tool.
  * @author Sandesh Ghimire
  * @copyright (C) Soccentric LLC. All rights reserved.
+ *
+ * This application provides a command-line interface for testing and monitoring
+ * all hardware peripherals on the NXP FRDM-IMX93 development board. It supports
+ * both short verification tests and extended monitoring capabilities.
+ *
+ * @version 1.0
+ * @date 2025-11-17
  */
 
 #include <CLI/CLI.hpp>
@@ -33,9 +40,21 @@
 
 using namespace imx93_peripheral_test;
 
-// Factory for creating testers
+/**
+ * @brief Type alias for a factory function that creates peripheral testers.
+ *
+ * Defines a function signature that returns a unique pointer to a PeripheralTester
+ * instance. Used for registering different peripheral implementations.
+ */
 using TesterFactory = std::function<std::unique_ptr<PeripheralTester>()>;
 
+/**
+ * @brief Registry mapping peripheral names to their factory functions.
+ *
+ * Global map that associates string identifiers with factory functions for
+ * creating instances of specific peripheral testers. This enables dynamic
+ * instantiation of testers based on command-line arguments.
+ */
 std::map<std::string, TesterFactory> tester_registry = {
     {"cpu", []() { return std::make_unique<CPUTester>(); }},
     {"gpio", []() { return std::make_unique<GPIOTester>(); }},
@@ -49,6 +68,15 @@ std::map<std::string, TesterFactory> tester_registry = {
     {"power", []() { return std::make_unique<PowerTester>(); }},
     {"form_factor", []() { return std::make_unique<FormFactorTester>(); }}};
 
+/**
+ * @brief Lists all available peripherals and their status.
+ *
+ * Iterates through the tester registry and displays each peripheral's name
+ * along with its availability status on the current system.
+ *
+ * @note This function creates temporary tester instances to check availability,
+ *       which may involve system calls or hardware detection.
+ */
 void list_peripherals() {
   std::cout << "Available Peripherals:\n";
   std::cout << "=====================\n";
@@ -59,6 +87,20 @@ void list_peripherals() {
   }
 }
 
+/**
+ * @brief Main application entry point.
+ *
+ * Parses command-line arguments using CLI11 and orchestrates the execution
+ * of peripheral tests based on user input. Supports listing peripherals,
+ * running short tests, and performing monitoring tests.
+ *
+ * @param argc Number of command-line arguments.
+ * @param argv Array of command-line argument strings.
+ * @return Exit code: 0 for success, 1 for failure or invalid arguments.
+ *
+ * @note Uses CLI11 for argument parsing and supports JSON output format.
+ * @note Logging is configured based on command-line options.
+ */
 int main(int argc, char* argv[]) {
   CLI::App app{"NXP FRDM-IMX93 Hardware Peripheral Verification Tool"};
 
@@ -109,6 +151,17 @@ int main(int argc, char* argv[]) {
   std::vector<TestReport> reports;
   int                     failed_tests = 0;
 
+  /**
+   * @brief Lambda function to execute a test for a specific peripheral.
+   *
+   * This lambda encapsulates the common logic for running either short tests
+   * or monitoring tests on a peripheral. It handles peripheral lookup, availability
+   * checking, test execution, and result collection.
+   *
+   * @param name The name of the peripheral to test.
+   * @param is_monitor Whether to run a monitoring test (true) or short test (false).
+   * @param duration Duration for monitoring tests (ignored for short tests).
+   */
   auto run_test = [&](const std::string& name, bool is_monitor = false, int duration = 0) {
     if (tester_registry.find(name) == tester_registry.end()) {
       LOG_ERROR("Unknown peripheral: " + name);
