@@ -5,6 +5,7 @@
  * @copyright (C) Soccentric LLC. All rights reserved.
  */
 
+#include <CLI/CLI.hpp>
 #include <algorithm>
 #include <chrono>
 #include <fstream>
@@ -16,8 +17,6 @@
 #include <string>
 #include <thread>
 #include <vector>
-
-#include <CLI/CLI.hpp>
 
 #include "camera_tester.h"
 #include "cpu_tester.h"
@@ -63,7 +62,7 @@ void list_peripherals() {
 int main(int argc, char* argv[]) {
   CLI::App app{"NXP FRDM-IMX93 Hardware Peripheral Verification Tool"};
 
-  bool json_output = false;
+  bool        json_output = false;
   std::string output_file;
   app.add_flag("--json", json_output, "Output results in JSON format");
   app.add_option("--output", output_file, "Write output to file");
@@ -72,17 +71,17 @@ int main(int argc, char* argv[]) {
   auto list_cmd = app.add_subcommand("list", "List all available peripherals");
 
   // Test subcommand
-  auto test_cmd = app.add_subcommand("test", "Run short tests");
-  bool test_all = false;
+  auto                     test_cmd = app.add_subcommand("test", "Run short tests");
+  bool                     test_all = false;
   std::vector<std::string> test_peripherals;
   test_cmd->add_flag("--all", test_all, "Run short tests for all peripherals");
   test_cmd->add_option("peripherals", test_peripherals, "Specific peripherals to test")
       ->expected(0, -1);
 
   // Monitor subcommand
-  auto monitor_cmd = app.add_subcommand("monitor", "Run monitoring tests");
-  bool monitor_all = false;
-  int monitor_duration = 10;
+  auto                     monitor_cmd      = app.add_subcommand("monitor", "Run monitoring tests");
+  bool                     monitor_all      = false;
+  int                      monitor_duration = 10;
   std::vector<std::string> monitor_peripherals;
   monitor_cmd->add_flag("--all", monitor_all, "Run monitoring tests for all peripherals");
   monitor_cmd->add_option("--duration", monitor_duration, "Monitoring duration in seconds")
@@ -108,7 +107,7 @@ int main(int argc, char* argv[]) {
   }
 
   std::vector<TestReport> reports;
-  int failed_tests = 0;
+  int                     failed_tests = 0;
 
   auto run_test = [&](const std::string& name, bool is_monitor = false, int duration = 0) {
     if (tester_registry.find(name) == tester_registry.end()) {

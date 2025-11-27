@@ -75,7 +75,8 @@ TestReport MemoryTester::short_test() {
   details << "ECC Enabled: " << (memory_info_.ecc_enabled ? "Yes" : "No") << "\n";
 
   // Check for expected 2GB LPDDR4X
-  bool correct_size = (memory_info_.total_ram_mb >= 1900 && memory_info_.total_ram_mb <= 2100);  // Allow some variation
+  bool correct_size = (memory_info_.total_ram_mb >= 1900 &&
+                       memory_info_.total_ram_mb <= 2100);  // Allow some variation
   details << "Capacity Check (2GB): " << (correct_size ? "PASS" : "FAIL") << "\n";
   if (!correct_size)
     all_passed = false;

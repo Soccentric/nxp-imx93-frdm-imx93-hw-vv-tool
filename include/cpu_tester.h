@@ -32,7 +32,7 @@ struct CPUInfo {
   double      temperature_c;
   bool        m33_available;  // Cortex-M33 core (RTOS domain, not directly testable from Linux)
   bool        npu_available;  // Arm Ethos U-65 NPU
-  double      npu_tops;      // NPU performance in TOPS
+  double      npu_tops;       // NPU performance in TOPS
 };
 
 /**

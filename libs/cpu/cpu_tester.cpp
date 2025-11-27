@@ -78,8 +78,13 @@ TestReport CPUTester::short_test() {
   details << "Cores: " << cpu_info_.cores << "\n";
   details << "Architecture: " << cpu_info_.architecture << "\n";
   details << "Frequency: " << cpu_info_.frequency_mhz << " MHz\n";
-  details << "M33 Core: " << (cpu_info_.m33_available ? "Present (RTOS domain)" : "Not available") << "\n";
-  details << "NPU: " << (cpu_info_.npu_available ? "Ethos U-65 (" + std::to_string(cpu_info_.npu_tops) + " TOPS)" : "Not available") << "\n";
+  details << "M33 Core: " << (cpu_info_.m33_available ? "Present (RTOS domain)" : "Not available")
+          << "\n";
+  details << "NPU: "
+          << (cpu_info_.npu_available
+                  ? "Ethos U-65 (" + std::to_string(cpu_info_.npu_tops) + " TOPS)"
+                  : "Not available")
+          << "\n";
 
   // Test basic computation
   TestResult benchmark_result = benchmark_cpu();
@@ -106,7 +111,11 @@ TestReport CPUTester::short_test() {
 
   // Test NPU availability
   TestResult npu_result = test_npu();
-  details << "NPU: " << (npu_result == TestResult::SUCCESS ? "PASS" : (npu_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL")) << "\n";
+  details << "NPU: "
+          << (npu_result == TestResult::SUCCESS
+                  ? "PASS"
+                  : (npu_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL"))
+          << "\n";
   if (npu_result != TestResult::SUCCESS && npu_result != TestResult::NOT_SUPPORTED)
     all_passed = false;
 
@@ -247,7 +256,7 @@ CPUInfo CPUTester::get_cpu_info() {
 
   // Check for NPU
   info.npu_available = check_npu_available();
-  info.npu_tops = info.npu_available ? 0.5 : 0.0;  // Ethos U-65 at 1 GHz
+  info.npu_tops      = info.npu_available ? 0.5 : 0.0;  // Ethos U-65 at 1 GHz
 
   return info;
 }
