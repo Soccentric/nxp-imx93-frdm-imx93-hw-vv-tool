@@ -1,0 +1,1 @@
+{"tests": [{"peripheral": "CPU","result": "FAILURE","duration_ms": 0,"timestamp": "2025-11-25 15:43:18","details": "CPU Model: AMD RYZEN AI MAX+ 395 w/ Radeon 8060S\nCores: 16\nArchitecture: \nFrequency: 5187.5 MHz\nBenchmark: PASS\nTemperature: PASS (36.8°C)\nMulti-core: FAIL\n"}], "summary": {"total": 1,"failed": 1,"passed": 0}}

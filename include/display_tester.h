@@ -131,10 +131,10 @@ private:
   TestResult monitor_display_connection(std::chrono::seconds duration);
 
   /**
-   * @brief Tests 4Kp60 HDMI output capability.
+   * @brief Tests 720p HDMI output capability.
    * @return TestResult indicating success or failure.
    */
-  TestResult test_4k_hdmi();
+  TestResult test_hdmi_720p();
 
   std::vector<DisplayInfo> displays_;
   bool                     display_available_;

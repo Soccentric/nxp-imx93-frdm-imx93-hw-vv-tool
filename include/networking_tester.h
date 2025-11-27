@@ -5,7 +5,8 @@
  * @copyright (C) Soccentric LLC. All rights reserved.
  *
  * This header defines the Networking tester class that implements comprehensive
- * testing and monitoring of networking functionality on the NXP FRDM-IMX93.
+ * testing and monitoring of networking functionality on the NXP FRDM-IMX93,
+ * including u-blox MAYA-W27x Wi-Fi/Bluetooth module and dual Gigabit Ethernet.
  */
 
 #ifndef NETWORKING_TESTER_H

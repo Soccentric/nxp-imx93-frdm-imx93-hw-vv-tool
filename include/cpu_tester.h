@@ -6,7 +6,8 @@
  *
  * This header defines the CPU tester class that implements comprehensive
  * testing and monitoring of CPU functionality on the NXP FRDM-IMX93 development board
- * with i.MX 93 processor featuring dual ARM Cortex-A55 cores.
+ * with i.MX 93 processor featuring dual ARM Cortex-A55 cores, single ARM Cortex-M33 core,
+ * and Arm Ethos U-65 NPU.
  */
 
 #ifndef CPU_TESTER_H
@@ -29,6 +30,9 @@ struct CPUInfo {
   std::string architecture;
   double      frequency_mhz;
   double      temperature_c;
+  bool        m33_available;  // Cortex-M33 core (RTOS domain, not directly testable from Linux)
+  bool        npu_available;  // Arm Ethos U-65 NPU
+  double      npu_tops;      // NPU performance in TOPS
 };
 
 /**
@@ -50,9 +54,10 @@ public:
    * @brief Performs short verification test of CPU functionality.
    *
    * Tests basic CPU operations including:
-   * - Core count verification
+   * - Core count verification (Cortex-A55)
    * - Basic computation tests
    * - CPU information retrieval
+   * - NPU availability check
    *
    * @return TestReport with detailed results.
    */
@@ -118,10 +123,22 @@ private:
   TestResult test_multi_core();
 
   /**
+   * @brief Tests NPU availability and basic functionality.
+   * @return TestResult indicating success or failure.
+   */
+  TestResult test_npu();
+
+  /**
    * @brief Gets the current CPU temperature.
    * @return Temperature in Celsius, or -1.0 if not available.
    */
   double get_cpu_temperature();
+
+  /**
+   * @brief Checks if NPU is available on the system.
+   * @return true if NPU is accessible.
+   */
+  bool check_npu_available();
 
   CPUInfo cpu_info_;
   bool    cpu_available_;

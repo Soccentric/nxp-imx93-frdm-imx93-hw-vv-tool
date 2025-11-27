@@ -10,7 +10,7 @@ REMOTE_BASE_DIR := /tmp/frdm-imx93-test
 # Docker configuration
 DOCKER_IMAGE := imx93-builder
 # Ensure we run with the correct platform and mount the current directory
-DOCKER_RUN := docker run --platform linux/arm64 --rm -v $(PWD):/workspace -w /workspace $(DOCKER_IMAGE)
+DOCKER_RUN := docker run --platform linux/arm64 --rm -it -v $(PWD):/workspace -w /workspace $(DOCKER_IMAGE)
 
 .PHONY: help all clean build native shell deploy run run-arm test test-arm
 

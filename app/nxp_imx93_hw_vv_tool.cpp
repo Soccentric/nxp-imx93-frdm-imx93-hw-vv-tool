@@ -17,6 +17,8 @@
 #include <thread>
 #include <vector>
 
+#include <CLI/CLI.hpp>
+
 #include "camera_tester.h"
 #include "cpu_tester.h"
 #include "display_tester.h"
@@ -31,17 +33,6 @@
 #include "usb_tester.h"
 
 using namespace imx93_peripheral_test;
-
-// Configuration structure
-struct Config {
-  bool                     json_output = false;
-  std::string              output_file;
-  bool                     list_peripherals = false;
-  bool                     run_all_short    = false;
-  int                      monitor_duration = 0;
-  std::vector<std::string> specific_tests;
-  bool                     short_test = false;
-};
 
 // Factory for creating testers
 using TesterFactory = std::function<std::unique_ptr<PeripheralTester>()>;
@@ -59,22 +50,6 @@ std::map<std::string, TesterFactory> tester_registry = {
     {"power", []() { return std::make_unique<PowerTester>(); }},
     {"form_factor", []() { return std::make_unique<FormFactorTester>(); }}};
 
-void print_usage(const char* program_name) {
-  std::cout << "NXP FRDM-IMX93 Hardware Peripheral Verification Tool\n"
-            << "Usage: " << program_name << " [options]\n\n"
-            << "Options:\n"
-            << "  --all-short          Run short tests for all peripherals\n"
-            << "  --all-monitor <sec>  Run monitoring tests for all peripherals\n"
-            << "  --test <peripheral>  Run short test for specific peripheral\n"
-            << "  --monitor <peripheral> <sec> Run monitoring test for specific peripheral\n"
-            << "  --list               List all available peripherals\n"
-            << "  --json               Output results in JSON format\n"
-            << "  --output <file>      Write output to file\n"
-            << "  --help               Show this help message\n\n"
-            << "Available peripherals: cpu, gpio, camera, gpu, memory, storage, display, usb, "
-               "networking, power, form_factor\n";
-}
-
 void list_peripherals() {
   std::cout << "Available Peripherals:\n";
   std::cout << "=====================\n";
@@ -86,59 +61,56 @@ void list_peripherals() {
 }
 
 int main(int argc, char* argv[]) {
-  Config                   config;
-  std::vector<std::string> args(argv + 1, argv + argc);
+  CLI::App app{"NXP FRDM-IMX93 Hardware Peripheral Verification Tool"};
 
-  if (args.empty()) {
-    print_usage(argv[0]);
-    return 1;
-  }
+  bool json_output = false;
+  std::string output_file;
+  app.add_flag("--json", json_output, "Output results in JSON format");
+  app.add_option("--output", output_file, "Write output to file");
 
-  // Parse arguments
-  for (size_t i = 0; i < args.size(); ++i) {
-    if (args[i] == "--help") {
-      print_usage(argv[0]);
-      return 0;
-    } else if (args[i] == "--list") {
-      config.list_peripherals = true;
-    } else if (args[i] == "--json") {
-      config.json_output = true;
-    } else if (args[i] == "--output" && i + 1 < args.size()) {
-      config.output_file = args[++i];
-    } else if (args[i] == "--all-short") {
-      config.run_all_short = true;
-    } else if (args[i] == "--all-monitor" && i + 1 < args.size()) {
-      config.monitor_duration = std::stoi(args[++i]);
-      for (const auto& pair : tester_registry) {
-        config.specific_tests.push_back(pair.first);
-      }
-    } else if (args[i] == "--test" && i + 1 < args.size()) {
-      config.specific_tests.push_back(args[++i]);
-      config.short_test = true;
-    } else if (args[i] == "--monitor" && i + 2 < args.size()) {
-      config.specific_tests.push_back(args[++i]);
-      config.monitor_duration = std::stoi(args[++i]);
-    }
-  }
+  // List subcommand
+  auto list_cmd = app.add_subcommand("list", "List all available peripherals");
+
+  // Test subcommand
+  auto test_cmd = app.add_subcommand("test", "Run short tests");
+  bool test_all = false;
+  std::vector<std::string> test_peripherals;
+  test_cmd->add_flag("--all", test_all, "Run short tests for all peripherals");
+  test_cmd->add_option("peripherals", test_peripherals, "Specific peripherals to test")
+      ->expected(0, -1);
+
+  // Monitor subcommand
+  auto monitor_cmd = app.add_subcommand("monitor", "Run monitoring tests");
+  bool monitor_all = false;
+  int monitor_duration = 10;
+  std::vector<std::string> monitor_peripherals;
+  monitor_cmd->add_flag("--all", monitor_all, "Run monitoring tests for all peripherals");
+  monitor_cmd->add_option("--duration", monitor_duration, "Monitoring duration in seconds")
+      ->default_val(10);
+  monitor_cmd->add_option("peripherals", monitor_peripherals, "Specific peripherals to monitor")
+      ->expected(0, -1);
+
+  CLI11_PARSE(app, argc, argv);
 
   // Setup logging
-  if (!config.output_file.empty() && !config.json_output) {
-    Logger::instance().set_log_file(config.output_file);
+  if (!output_file.empty() && !json_output) {
+    Logger::instance().set_log_file(output_file);
   }
 
-  if (config.json_output) {
+  if (json_output) {
     Logger::instance().set_console_output(false);
   }
 
-  if (config.list_peripherals) {
+  // Handle list command
+  if (*list_cmd) {
     list_peripherals();
     return 0;
   }
 
   std::vector<TestReport> reports;
-  int                     failed_tests = 0;
+  int failed_tests = 0;
 
-  auto run_test = [&](const std::string& name) {
+  auto run_test = [&](const std::string& name, bool is_monitor = false, int duration = 0) {
     if (tester_registry.find(name) == tester_registry.end()) {
       LOG_ERROR("Unknown peripheral: " + name);
       return;
@@ -151,10 +123,9 @@ int main(int argc, char* argv[]) {
     }
 
     TestReport report;
-    if (config.monitor_duration > 0) {
-      LOG_INFO("Running monitoring test for " + name + " (" +
-               std::to_string(config.monitor_duration) + "s)...");
-      report = tester->monitor_test(std::chrono::seconds(config.monitor_duration));
+    if (is_monitor) {
+      LOG_INFO("Running monitoring test for " + name + " (" + std::to_string(duration) + "s)...");
+      report = tester->monitor_test(std::chrono::seconds(duration));
     } else {
       LOG_INFO("Running short test for " + name + "...");
       report = tester->short_test();
@@ -162,7 +133,7 @@ int main(int argc, char* argv[]) {
 
     reports.push_back(report);
 
-    if (!config.json_output) {
+    if (!json_output) {
       LOG_INFO("Result: " + test_result_to_string(report.result));
       LOG_INFO("Details: " + report.details);
     }
@@ -172,17 +143,45 @@ int main(int argc, char* argv[]) {
     }
   };
 
-  if (config.run_all_short) {
-    for (const auto& pair : tester_registry) {
-      run_test(pair.first);
-    }
-  } else {
-    for (const auto& test : config.specific_tests) {
-      run_test(test);
+  // Handle test command
+  if (*test_cmd) {
+    if (test_all) {
+      for (const auto& pair : tester_registry) {
+        run_test(pair.first, false);
+      }
+    } else if (!test_peripherals.empty()) {
+      for (const auto& peripheral : test_peripherals) {
+        run_test(peripheral, false);
+      }
+    } else {
+      std::cout << "Error: Specify --all or provide peripheral names for test command\n";
+      return 1;
     }
   }
 
-  if (config.json_output) {
+  // Handle monitor command
+  if (*monitor_cmd) {
+    if (monitor_all) {
+      for (const auto& pair : tester_registry) {
+        run_test(pair.first, true, monitor_duration);
+      }
+    } else if (!monitor_peripherals.empty()) {
+      for (const auto& peripheral : monitor_peripherals) {
+        run_test(peripheral, true, monitor_duration);
+      }
+    } else {
+      std::cout << "Error: Specify --all or provide peripheral names for monitor command\n";
+      return 1;
+    }
+  }
+
+  // If no subcommand was used, show help
+  if (!*list_cmd && !*test_cmd && !*monitor_cmd) {
+    std::cout << app.help() << std::endl;
+    return 1;
+  }
+
+  if (json_output) {
     std::stringstream json_ss;
     json_ss << "{\"tests\": [";
     for (size_t i = 0; i < reports.size(); ++i) {
@@ -196,8 +195,8 @@ int main(int argc, char* argv[]) {
     json_ss << "\"passed\": " << (reports.size() - failed_tests);
     json_ss << "}}";
 
-    if (!config.output_file.empty()) {
-      std::ofstream out(config.output_file);
+    if (!output_file.empty()) {
+      std::ofstream out(output_file);
       out << json_ss.str();
     } else {
       std::cout << json_ss.str() << std::endl;

@@ -5,7 +5,7 @@
  * @copyright (C) Soccentric LLC. All rights reserved.
  *
  * This implementation tests the i.MX 93 integrated GPU:
- * - Vivante GC520 GPU
+ * - Vivante GC7000UL GPU
  * - OpenGL ES 3.1 support
  * - Vulkan 1.1 support (driver dependent)
  * - 2D/3D graphics acceleration

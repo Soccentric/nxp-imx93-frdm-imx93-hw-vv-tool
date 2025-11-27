@@ -5,7 +5,7 @@
  * @copyright (C) Soccentric LLC. All rights reserved.
  *
  * This implementation tests the i.MX 93 memory subsystem:
- * - DDR4 or LPDDR4/LPDDR4X support (up to 2GB on FRDM board)
+ * - LPDDR4X support (2 GB on FRDM board, Micron MT53E1G16D1FW-046 AAT:A, 16-bit interface)
  * - Advanced memory controller with ECC support
  * - Memory bandwidth testing
  * - Integrity verification with various patterns
@@ -73,6 +73,12 @@ TestReport MemoryTester::short_test() {
   details << "Memory Type: " << memory_info_.memory_type << "\n";
   details << "ECC Supported: " << (memory_info_.ecc_supported ? "Yes" : "No") << "\n";
   details << "ECC Enabled: " << (memory_info_.ecc_enabled ? "Yes" : "No") << "\n";
+
+  // Check for expected 2GB LPDDR4X
+  bool correct_size = (memory_info_.total_ram_mb >= 1900 && memory_info_.total_ram_mb <= 2100);  // Allow some variation
+  details << "Capacity Check (2GB): " << (correct_size ? "PASS" : "FAIL") << "\n";
+  if (!correct_size)
+    all_passed = false;
 
   // Test RAM integrity
   TestResult integrity_result = test_ram_integrity();

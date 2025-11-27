@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     gcc-aarch64-linux-gnu \
     g++-aarch64-linux-gnu \
     crossbuild-essential-arm64 \
+    qemu-user-static \
     && rm -rf /var/lib/apt/lists/*
 
 # Create user with sudo privileges

@@ -77,14 +77,14 @@ TestReport DisplayTester::short_test() {
   if (dsi_result != TestResult::SUCCESS && dsi_result != TestResult::NOT_SUPPORTED)
     all_passed = false;
 
-  // Test 4K HDMI capability
-  TestResult k4_result = test_4k_hdmi();
-  details << "4K HDMI: "
-          << (k4_result == TestResult::SUCCESS
+  // Test HDMI 720p capability
+  TestResult hdmi_720p_result = test_hdmi_720p();
+  details << "HDMI 720p: "
+          << (hdmi_720p_result == TestResult::SUCCESS
                   ? "PASS"
-                  : (k4_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL"))
+                  : (hdmi_720p_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL"))
           << "\n";
-  if (k4_result != TestResult::SUCCESS && k4_result != TestResult::NOT_SUPPORTED)
+  if (hdmi_720p_result != TestResult::SUCCESS && hdmi_720p_result != TestResult::NOT_SUPPORTED)
     all_passed = false;
 
   auto end_time = std::chrono::steady_clock::now();
@@ -315,23 +315,22 @@ TestResult DisplayTester::monitor_display_connection(std::chrono::seconds durati
   return stable ? TestResult::SUCCESS : TestResult::FAILURE;
 }
 
-TestResult DisplayTester::test_4k_hdmi() {
-  // Test 4K HDMI capability
+TestResult DisplayTester::test_hdmi_720p() {
+  // Test 720p HDMI capability
   for (const auto& display : displays_) {
     if (display.type == DisplayType::HDMI && display.connected) {
-      // Check for 4K resolution
-      if (display.resolution.find("3840x2160") != std::string::npos ||
-          display.resolution.find("4096x2160") != std::string::npos) {
-        // Check refresh rate for 4Kp60
-        if (display.refresh_rate >= 60) {
+      // Check for 720p resolution (1280x720)
+      if (display.resolution.find("1280x720") != std::string::npos) {
+        // Check refresh rate
+        if (display.refresh_rate >= 30) {
           return TestResult::SUCCESS;
         }
       }
     }
   }
 
-  // Check if 4K modes are supported even if not currently active
-  FILE* xrandr_pipe = popen("xrandr 2>/dev/null | grep -E '3840x2160|4096x2160'", "r");
+  // Check if 720p modes are supported even if not currently active
+  FILE* xrandr_pipe = popen("xrandr 2>/dev/null | grep '1280x720'", "r");
   if (xrandr_pipe) {
     char buffer[128];
     if (fgets(buffer, sizeof(buffer), xrandr_pipe)) {

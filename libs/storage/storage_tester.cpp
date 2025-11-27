@@ -258,6 +258,11 @@ TestResult StorageTester::test_emmc() {
   for (const auto& device : storage_devices_) {
     if (device.type == StorageType::EMMC) {
       emmc_found = true;
+      // Check for expected 32GB FORESEE eMMC
+      bool correct_size = (device.size_gb >= 28 && device.size_gb <= 36);  // Allow some variation
+      if (!correct_size) {
+        return TestResult::FAILURE;
+      }
       // Test basic I/O on eMMC
       TestResult perf_result = test_storage_performance(device.device_path);
       if (perf_result != TestResult::SUCCESS) {

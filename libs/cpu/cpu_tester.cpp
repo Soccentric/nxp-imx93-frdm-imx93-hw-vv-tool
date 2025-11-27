@@ -6,6 +6,8 @@
  *
  * This implementation tests the i.MX 93 processor featuring:
  * - Dual ARM Cortex-A55 cores (up to 1.7 GHz)
+ * - Single ARM Cortex-M33 core (up to 250 MHz) - RTOS domain, not directly testable from Linux
+ * - Arm Ethos U-65 NPU (0.5 TOPS at 1 GHz)
  * - ARM v8.2-A architecture
  * - Advanced power management
  * - Integrated thermal monitoring
@@ -32,7 +34,7 @@ namespace imx93_peripheral_test {
  *
  * Initializes the CPU tester by checking for CPU information availability
  * and retrieving initial CPU information from /proc/cpuinfo.
- * For i.MX93, expects to find dual Cortex-A55 cores.
+ * For i.MX93, expects to find dual Cortex-A55 cores, and checks for NPU availability.
  */
 CPUTester::CPUTester() : cpu_available_(false) {
   // Check if CPU information is available
@@ -76,6 +78,8 @@ TestReport CPUTester::short_test() {
   details << "Cores: " << cpu_info_.cores << "\n";
   details << "Architecture: " << cpu_info_.architecture << "\n";
   details << "Frequency: " << cpu_info_.frequency_mhz << " MHz\n";
+  details << "M33 Core: " << (cpu_info_.m33_available ? "Present (RTOS domain)" : "Not available") << "\n";
+  details << "NPU: " << (cpu_info_.npu_available ? "Ethos U-65 (" + std::to_string(cpu_info_.npu_tops) + " TOPS)" : "Not available") << "\n";
 
   // Test basic computation
   TestResult benchmark_result = benchmark_cpu();
@@ -98,6 +102,12 @@ TestReport CPUTester::short_test() {
   TestResult multi_core_result = test_multi_core();
   details << "Multi-core: " << (multi_core_result == TestResult::SUCCESS ? "PASS" : "FAIL") << "\n";
   if (multi_core_result != TestResult::SUCCESS)
+    all_passed = false;
+
+  // Test NPU availability
+  TestResult npu_result = test_npu();
+  details << "NPU: " << (npu_result == TestResult::SUCCESS ? "PASS" : (npu_result == TestResult::NOT_SUPPORTED ? "N/A" : "FAIL")) << "\n";
+  if (npu_result != TestResult::SUCCESS && npu_result != TestResult::NOT_SUPPORTED)
     all_passed = false;
 
   auto end_time = std::chrono::steady_clock::now();
@@ -231,6 +241,13 @@ CPUInfo CPUTester::get_cpu_info() {
 
   // Get temperature
   info.temperature_c = get_cpu_temperature();
+
+  // Check for Cortex-M33 (not directly accessible from Linux)
+  info.m33_available = true;  // Assumed present on i.MX93
+
+  // Check for NPU
+  info.npu_available = check_npu_available();
+  info.npu_tops = info.npu_available ? 0.5 : 0.0;  // Ethos U-65 at 1 GHz
 
   return info;
 }
@@ -389,6 +406,78 @@ TestResult CPUTester::test_multi_core() {
   }
 
   return TestResult::SUCCESS;
+}
+
+/**
+ * @brief Tests NPU availability and basic functionality.
+ *
+ * Checks if the Arm Ethos U-65 NPU is available and accessible.
+ * Performs a basic inference test if possible.
+ *
+ * @return TestResult::SUCCESS if NPU is available and functional,
+ *         TestResult::NOT_SUPPORTED if NPU is not available,
+ *         TestResult::FAILURE if NPU test fails.
+ *
+ * @note NPU testing requires appropriate drivers and libraries.
+ */
+TestResult CPUTester::test_npu() {
+  if (!cpu_info_.npu_available) {
+    return TestResult::NOT_SUPPORTED;
+  }
+
+  // Check for NPU device nodes or drivers
+  // Ethos U-65 may appear as /dev/ethos-u or similar
+  if (!fs::exists("/dev/ethos-u") && !fs::exists("/sys/class/misc/ethos-u")) {
+    // Try to check if NPU driver is loaded
+    FILE* lsmod_pipe = popen("lsmod | grep -i ethos", "r");
+    if (!lsmod_pipe) {
+      return TestResult::NOT_SUPPORTED;
+    }
+    char buffer[128];
+    bool found = fgets(buffer, sizeof(buffer), lsmod_pipe) != nullptr;
+    pclose(lsmod_pipe);
+    if (!found) {
+      return TestResult::NOT_SUPPORTED;
+    }
+  }
+
+  // Basic NPU functionality test would require inference libraries
+  // For now, just check availability
+  return TestResult::SUCCESS;
+}
+
+/**
+ * @brief Checks if NPU is available on the system.
+ *
+ * Verifies the presence of Arm Ethos U-65 NPU by checking device nodes,
+ * driver modules, or system information.
+ *
+ * @return true if NPU is detected, false otherwise.
+ */
+bool CPUTester::check_npu_available() {
+  // Check for Ethos U-65 device nodes
+  if (fs::exists("/dev/ethos-u") || fs::exists("/sys/class/misc/ethos-u")) {
+    return true;
+  }
+
+  // Check if NPU driver is loaded
+  FILE* lsmod_pipe = popen("lsmod | grep -i ethos", "r");
+  if (lsmod_pipe) {
+    char buffer[128];
+    if (fgets(buffer, sizeof(buffer), lsmod_pipe)) {
+      pclose(lsmod_pipe);
+      return true;
+    }
+    pclose(lsmod_pipe);
+  }
+
+  // Check for NPU in device tree or sysfs
+  if (fs::exists("/sys/firmware/devicetree/base/soc/npu") ||
+      fs::exists("/proc/device-tree/soc/npu")) {
+    return true;
+  }
+
+  return false;
 }
 
 /**

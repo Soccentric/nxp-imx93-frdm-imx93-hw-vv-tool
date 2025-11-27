@@ -4,6 +4,12 @@ set -e
 # FRDM-IMX93 Peripheral Verification Tool - Installation Script
 echo "Installing FRDM-IMX93 Peripheral Verification Tool..."
 
+# Install build dependencies
+echo "Installing build dependencies..."
+apt-get update
+apt-get install -y qemu-user-static binfmt-support
+update-binfmts --enable qemu-aarch64
+
 # Check if build directory exists
 if [ ! -d "build" ]; then
     echo "Error: Build directory not found. Please run ./scripts/build.sh first."
